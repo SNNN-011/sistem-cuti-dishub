@@ -257,12 +257,12 @@ def histori():
         if r.get("STATUS", "").strip() != "Disetujui":
             continue
 
-        keperluan = r.get("KEPERLUAN", "").strip()
+        keperluan = str(r.get("KEPERLUAN", "")).strip().upper()
         durasi = _get_durasi(r)
 
-        if keperluan in ("Cuti Hamil/Melahirkan", "Cuti Melahirkan"):
+        if keperluan in ("CUTI HAMIL/MELAHIRKAN", "CUTI MELAHIRKAN"):
             hamil_index[nama] = hamil_index.get(nama, 0) + durasi
-        elif keperluan != "Sakit":
+        elif keperluan != "SAKIT":
             kuota_index[nama] = kuota_index.get(nama, 0) + durasi
 
         # Track NI PPPK PW per nama (first seen wins)

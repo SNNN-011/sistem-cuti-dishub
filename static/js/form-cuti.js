@@ -47,8 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let fpSelesai = null;
 
     const isMelahirkan = () => {
-        const v = keperluanSelect.value;
-        return v === "Cuti Melahirkan" || v === "Cuti Hamil/Melahirkan";
+        const v = (keperluanSelect.value || "").toUpperCase();
+        return v === "CUTI MELAHIRKAN" || v === "CUTI HAMIL/MELAHIRKAN";
     };
 
     // Ambil tanggal mulai dalam format YYYY-MM-DD

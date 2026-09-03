@@ -17,6 +17,7 @@ from services.security import rate_limit, safe_error_message, validate_csrf
 from services.sheets_service import (
     append_row,
     generate_pengajuan_id,
+    get_all_records,
     get_karyawan_by_nip,
     get_pengajuan_by_nama,
     get_all_kabid_kasi,
@@ -39,9 +40,12 @@ def form_cuti():
         shif = request.form.get("shif", "").strip()
         tgl_mulai = request.form.get("tgl_mulai", "").strip()
         tgl_selesai = request.form.get("tgl_selesai", "").strip()
-        keperluan = request.form.get("keperluan", "").strip()
+        keperluan = request.form.get("keperluan", "").strip().upper()
         kabid_kasi = request.form.get("kabid_kasi", "").strip()
         catatan = request.form.get("catatan", "").strip()
+
+        # Normalisasi: KEPERLUAN selalu kapital (legacy data case-insensitive)
+        KEPERLUAN_HAMIL = {"CUTI HAMIL/MELAHIRKAN", "CUTI MELAHIRKAN"}
 
         # Validasi field wajib
         missing = []
@@ -51,7 +55,7 @@ def form_cuti():
         if not seksi: missing.append("Bidang/Seksi")
         if not shif: missing.append("Shif")
         if not tgl_mulai: missing.append("Tanggal Mulai")
-        if not tgl_selesai and keperluan not in ("Cuti Hamil/Melahirkan", "Cuti Melahirkan"): 
+        if not tgl_selesai and keperluan not in KEPERLUAN_HAMIL:
             missing.append("Tanggal Selesai")
         if not keperluan: missing.append("Keperluan")
         if not kabid_kasi: missing.append("Kabid/Kasi")
@@ -78,7 +82,7 @@ def form_cuti():
         nip_kabid = str(kabid_data["NIP"]).strip()
 
         # Override tgl_selesai untuk Cuti Melahirkan (selalu hitung akurat dari server)
-        if keperluan in ("Cuti Hamil/Melahirkan", "Cuti Melahirkan"):
+        if keperluan in KEPERLUAN_HAMIL:
             tgl_selesai = tambah_hari_kerja(tgl_mulai, 90)
 
         # Validasi tanggal
@@ -101,7 +105,7 @@ def form_cuti():
         # Validasi kuota
         tahun = get_tahun_sekarang()
         if not boleh_ajukan(nama, tahun, keperluan, durasi_hari_kerja):
-            if keperluan in ("Cuti Hamil/Melahirkan", "Cuti Melahirkan"):
+            if keperluan in KEPERLUAN_HAMIL:
                 flash("Kuota cuti hamil/melahirkan (90 hari kerja) tidak mencukupi.", "danger")
             else:
                 flash("Kuota cuti tahunan (12 hari kerja) tidak mencukupi.", "danger")
@@ -124,8 +128,24 @@ def form_cuti():
 
         bulan_str = f"{BULAN_NAMA[tgl_mulai_dt.month]} {tgl_mulai_dt.year}"
 
+        # Hitung NO auto-increment (kolom NO di Sheets CUTI 2026)
+        try:
+            records = get_all_records(SHEET_CUTI)
+            max_no = 0
+            for r in records:
+                try:
+                    n = int(str(r.get("NO", "")).strip())
+                    if n > max_no:
+                        max_no = n
+                except (ValueError, TypeError):
+                    continue
+            next_no = str(max_no + 1)
+        except Exception:
+            next_no = "1"
+
         # Tulis ke Sheets
         data = {
+            "NO": next_no,
             "MASEHI": bulan_str,
             "HARI": hari,
             "NAMA": nama,
