@@ -1,10 +1,16 @@
-# Railway runs Nixpacks v1.41.0. Without this file Nixpacks sees the
-# package.json in the repo root and picks the Node.js provider, so the build
-# only runs `npm ci` and never `pip install`. Both gunicorn and waitress then
-# fail with "command not found" and the container restart-loops into a 502.
+# Railway runs Nixpacks v1.41.0.
 #
-# Pinning the provider and the install phase makes the Python dependency set
-# explicit instead of relying on Nixpacks' file-based detection.
+# Two things are pinned here on purpose:
+#
+# 1. Provider. package.json sits in the repo root, so Nixpacks' file-based
+#    detection picks Node.js and only runs `npm ci` — pip never runs, and
+#    every WSGI server ends up "command not found" in a restart loop.
+#
+# 2. A virtualenv. python311 from nixpkgs is externally managed (PEP 668):
+#    `pip install` fails with "error: externally-managed-environment ... This
+#    command has been disabled as it tries to modify the immutable /nix/store
+#    filesystem". Installing into a local venv sidesteps that without needing
+#    --break-system-packages, which would risk the base image.
 
 [phases.setup]
 # python311 from nixpkgs does NOT bundle pip ("No module named pip"), so pip
@@ -12,8 +18,12 @@
 nixPkgs = ["python311", "python311Packages.pip"]
 
 [phases.install]
-# Use the `pip` binary from the nix profile rather than `python -m pip`.
-cmds = ["pip install --no-cache-dir -r requirements.txt"]
+cmds = [
+  "python -m venv --copies /app/.venv",
+  "/app/.venv/bin/python -m pip install --no-cache-dir --upgrade pip",
+  "/app/.venv/bin/python -m pip install --no-cache-dir -r requirements.txt",
+]
 
 [start]
-cmd = "waitress-serve --host=0.0.0.0 --port=$PORT --threads=4 app:app"
+# absolute venv path so the server does not depend on PATH
+cmd = "/app/.venv/bin/waitress-serve --host=0.0.0.0 --port=$PORT --threads=4 app:app"
