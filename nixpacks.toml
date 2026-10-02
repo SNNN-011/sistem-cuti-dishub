@@ -7,10 +7,13 @@
 # explicit instead of relying on Nixpacks' file-based detection.
 
 [phases.setup]
+# python311 from nixpkgs does NOT bundle pip ("No module named pip"), so pip
+# itself has to come from nixpkgs too. `python -m pip` cannot bootstrap pip.
 nixPkgs = ["python311", "python311Packages.pip"]
 
 [phases.install]
-cmds = ["python -m pip install --no-cache-dir --upgrade pip", "python -m pip install --no-cache-dir -r requirements.txt"]
+# Use the `pip` binary from the nix profile rather than `python -m pip`.
+cmds = ["pip install --no-cache-dir -r requirements.txt"]
 
 [start]
 cmd = "waitress-serve --host=0.0.0.0 --port=$PORT --threads=4 app:app"
