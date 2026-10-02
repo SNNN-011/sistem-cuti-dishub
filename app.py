@@ -84,8 +84,16 @@ def create_app():
     def too_many_requests(e):
         return f"Terlalu banyak permintaan: {e.description}", 429
 
-    # Pre-warm Google Sheets connection + data cache at startup
-    with app.app_context():
+    # Pre-warm Google Sheets connection + data cache at startup.
+    # Runs in a daemon thread: this code executes at import time, and gunicorn
+    # binds its socket only after the module finishes importing. A slow or
+    # hanging Sheets API call here delays (or prevents) the bind, which Railway
+    # reports as 502 / "Application failed to respond". The cache is only an
+    # optimisation and every read path already handles failure, so this must
+    # never be able to block startup.
+    import threading
+
+    def _warm_sheets():
         try:
             from config.settings import SHEET_CUTI, SHEET_KARYAWAN
             from services.sheets_service import get_all_records
@@ -94,6 +102,8 @@ def create_app():
             print("Sheets cache warmed")
         except Exception as e:
             print(f"Sheets warm-up failed (will retry on first request): {e}")
+
+    threading.Thread(target=_warm_sheets, daemon=True).start()
 
     return app
 
