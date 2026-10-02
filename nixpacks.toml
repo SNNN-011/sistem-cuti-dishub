@@ -1,0 +1,16 @@
+# Railway runs Nixpacks v1.41.0. Without this file Nixpacks sees the
+# package.json in the repo root and picks the Node.js provider, so the build
+# only runs `npm ci` and never `pip install`. Both gunicorn and waitress then
+# fail with "command not found" and the container restart-loops into a 502.
+#
+# Pinning the provider and the install phase makes the Python dependency set
+# explicit instead of relying on Nixpacks' file-based detection.
+
+[phases.setup]
+nixPkgs = ["python311", "python311Packages.pip"]
+
+[phases.install]
+cmds = ["python -m pip install --no-cache-dir --upgrade pip", "python -m pip install --no-cache-dir -r requirements.txt"]
+
+[start]
+cmd = "waitress-serve --host=0.0.0.0 --port=$PORT --threads=4 app:app"
