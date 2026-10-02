@@ -163,6 +163,12 @@ def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # HSTS: only meaningful over HTTPS. Behind Railway/proxies the request can
+    # still look like http to Flask unless ProxyFix is applied in app.py, so
+    # gate on the forwarded proto rather than request.is_secure alone.
+    forwarded_proto = (request.headers.get("X-Forwarded-Proto") or "").lower()
+    if request.is_secure or forwarded_proto == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     # Nonce dibuat saat render template (lihat inject_globals di app.py);
     # untuk respons tanpa render (redirect/file) generate nonce sisa.
     nonce = g.get("csp_nonce") or secrets.token_urlsafe(16)

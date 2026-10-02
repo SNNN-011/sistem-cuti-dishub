@@ -150,31 +150,12 @@ def generate_surat_route(pengajuan_id):
         flash("Data tidak ditemukan.", "danger")
         return redirect(url_for("admin.dashboard"))
 
-    # Nomor surat dari form detail (diisi admin) — override data sheet
-    no_surat_input = request.args.get("no_surat", "").strip()
-    if no_surat_input:
-        data["NO SURAT"] = no_surat_input
-
+    # NO SURAT sudah otomatis terisi saat submit (kolom NO SURAT di Sheets).
+    # Data lama yang kosong dibiarkan apa adanya (tanpa override manual).
     try:
         docx_bytes = generate_surat(data)
         nama_file = str(data.get("NAMA", "unknown")).replace(" ", "_")
         filename = f"Surat_Cuti_{nama_file}.docx"
-
-        # Simpan no_surat ke Sheets agar tidak hilang (Fix 2)
-        if no_surat_input:
-            try:
-                from services.sheets_service import get_sheet
-                sheet = get_sheet(SHEET_CUTI)
-                headers = [h.strip() for h in sheet.row_values(1)]
-                id_col = headers.index("ID") + 1
-                id_values = sheet.col_values(id_col)
-                try:
-                    row_num = id_values.index(pengajuan_id) + 1
-                    update_cell(SHEET_CUTI, row_num, "NO SURAT", no_surat_input)
-                except ValueError:
-                    pass  # Row tidak ditemukan, skip
-            except Exception:
-                pass  # Non-critical, jangan gagalkan generate surat
 
         return send_file(
             io.BytesIO(docx_bytes),
@@ -196,23 +177,14 @@ def update_status(pengajuan_id):
     _require_valid_id(pengajuan_id)
 
     status = request.form.get("status", "").strip()
-    no_surat = request.form.get("no_surat", "").strip()
 
     if status not in ("Disetujui", "Ditolak", "Dibatalkan"):
         flash("Status tidak valid.", "danger")
         return redirect(url_for("admin.dashboard"))
 
-    if status == "Disetujui" and not no_surat:
-        flash("Nomor Surat wajib diisi untuk status Disetujui.", "danger")
-        return redirect(url_for("admin.detail", pengajuan_id=pengajuan_id))
-
-    # Validate no_surat format (alphanumeric + / only)
-    if no_surat and not all(c.isalnum() or c in "/- .," for c in no_surat):
-        flash("Format Nomor Surat tidak valid.", "danger")
-        return redirect(url_for("admin.detail", pengajuan_id=pengajuan_id))
-
+    # NO SURAT otomatis dari submit — pertahankan nilai di Sheets (tanpa input manual).
     try:
-        update_status_by_id(SHEET_CUTI, pengajuan_id, status, no_surat or None)
+        update_status_by_id(SHEET_CUTI, pengajuan_id, status)
         flash(f"Status berhasil diubah ke {status}.", "success")
     except Exception as e:
         flash(safe_error_message(e, "update status"), "danger")

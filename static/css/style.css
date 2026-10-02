@@ -15,9 +15,124 @@ body {
     background-color: oklch(var(--b1));
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    /* isolate() keeps the ::before watermark inside body's stacking context,
+       so it paints above body background but below every child — no z-index
+       juggling on nav/main/footer. */
+    isolation: isolate;
 }
 html {
     overflow-x: hidden;
+}
+
+/* === Background watermark — logo Dishub, full screen, faded === */
+/* position:fixed (not background-attachment:fixed) because iOS Safari
+   ignores attachment on body and can repaints the image on scroll. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: url("../img/logo-dishub.png");
+    background-repeat: no-repeat;
+    background-position: center center;
+    /* cover, not cover-independent `contain`: the logo is portrait (0.86
+       ratio), so `contain` letterboxed it into the middle where the opaque
+       card sits and it showed only as a sliver. cover fills the viewport,
+       and the edge crop is invisible at this opacity. */
+    background-size: cover;
+    /* Was 0.07 and effectively invisible: the opaque card covered the middle
+       where the logo actually sits. Cards below are now translucent + blurred,
+       so the mark reads across the whole page instead of just the gutters. */
+    opacity: 0.16;
+    filter: saturate(0.9);
+    /* fade the mark toward the screen edges so it reads as an intentional
+       brand field rather than a smudge behind a form */
+    -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 45%,
+        #000 0%, #000 45%, transparent 100%);
+    mask-image: radial-gradient(ellipse 85% 75% at 50% 45%,
+        #000 0%, #000 45%, transparent 100%);
+}
+
+/* === Frosted surface — the readability guarantee === */
+/* The watermark is only safe because content sits on a blurred translucent
+   surface: backdrop blur removes the competing logo detail behind the text,
+   so body copy keeps its contrast no matter how strong the mark gets.
+   Kept at the top of the file, so it MUST out-specify the solid
+   `.neo-card` / `.nav-bar` definitions further down — hence two classes. */
+.neo-card.neo-card,
+.nav-bar.nav-bar,
+#mobile-menu {
+    /* Why a literal rgba instead of var(--b1): daisyUI v4 (4.12.24, per
+       package.json) stores --b1 as BARE oklch components
+       ("92.9675% 0.009188 258.3"), not wrapped in oklch(). So
+       oklch(var(--b1) / .82) composes to oklch(92.9675% ... / .82), which is
+       invalid and silently drops the alpha back to a solid fill; the same
+       happens with relative oklch() and with oklch() inside color-mix. All
+       three were verified to fall back to solid. These two rgba values are
+       the exact sRGB equivalents of base-100 #e4e8ee (light) and #1c2129
+       (dark), declared per theme below. */
+    background: rgba(228, 232, 238, 0.82);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    backdrop-filter: blur(16px) saturate(1.15);
+}
+[data-theme="dishub-dark"] .neo-card.neo-card,
+[data-theme="dishub-dark"] .nav-bar.nav-bar,
+[data-theme="dishub-dark"] #mobile-menu {
+    background: rgba(28, 33, 41, 0.82);
+}
+
+/* Solid fallback: some users run reduced-transparency, and blur is costly on
+   low-end Android. The layout must not depend on the glass effect. */
+@media (prefers-reduced-transparency: reduce) {
+    .neo-card.neo-card,
+    .nav-bar.nav-bar,
+    #mobile-menu {
+        background: oklch(var(--b1));
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .neo-card, .nav-bar { transition: none; }
+}
+
+/* === Motion off (client request) ===
+   No press-scale, no hover lift, no transitions. States change instantly.
+   This also neutralises DaisyUI's own button/input animation and focus-scale
+   (see tailwind.config.js --animation-btn / --animation-input /
+   --btn-focus-scale), which is what produced the click animation. */
+.neo-card,
+.neo-card:hover,
+.neo-card:active,
+.btn,
+.btn:hover,
+.btn:active,
+.input,
+.select,
+.theme-toggle-btn,
+a[href] {
+    transition: none !important;
+    animation: none !important;
+}
+
+/* In dark mode the logo is dark navy, so invert it to read on the dark
+   surface, and lift opacity because the surface itself is dark. */
+[data-theme="dishub-dark"] body::before {
+    filter: invert(1) saturate(0.5);
+    opacity: 0.11;
+}
+
+@media print {
+    body::before {
+        display: none;
+    }
+    .neo-card, .nav-bar, #mobile-menu {
+        background: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        box-shadow: none;
+    }
 }
 
 /* === Extruded (convex) — cards, stats, buttons === */
@@ -37,7 +152,7 @@ html {
     }
 }
 .neo-card:active {
-    transform: scale(0.99);
+    /* was transform: scale(0.99) — removed, motion off */
 }
 
 /* === Inset (concave) — inputs, search fields === */
@@ -57,16 +172,20 @@ html {
     outline: none;
 }
 
-/* Inputs & selects — inset */
+/* Inputs & selects — inset.
+   alpha < 1 so the frosted watermark reads behind the field without the
+   placeholder/label contrast collapsing (WCAG AA still clears: see the
+   solid fallback below for reduced-transparency users). */
 .input {
-    background: var(--neo-inset-bg) !important;
+    background: color-mix(in srgb, var(--neo-inset-bg) 90%, transparent) !important;
     box-shadow:
         inset -3px -3px 8px var(--neo-light),
         inset 3px 3px 8px var(--neo-dark);
     border: none !important;
+    color: oklch(var(--bc)) !important;
 }
 .select {
-    background-color: var(--neo-inset-bg) !important;
+    background-color: color-mix(in srgb, var(--neo-inset-bg) 90%, transparent) !important;
     /* Chevron arrow (DaisyUI) — keep it */
     background-image: linear-gradient(45deg, #0000 50%, currentColor 0), linear-gradient(135deg, currentColor 50%, #0000 0);
     background-position: calc(100% - 20px) calc(1px + 50%), calc(100% - 16.1px) calc(1px + 50%);
@@ -85,13 +204,13 @@ html {
     outline: none;
 }
 
-/* Buttons — press animation */
+/* Buttons — motion off (client request): no press-scale, no transition */
 .btn {
     white-space: nowrap;
-    transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease, opacity 0.15s ease;
+    transition: none;
 }
 .btn:active {
-    transform: scale(0.97);
+    /* was transform: scale(0.97) — removed, motion off */
 }
 .btn-primary, .btn.bg-primary {
     box-shadow:

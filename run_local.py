@@ -7,7 +7,9 @@ with open("sistem-cuti-dishub-a0943db153bf.json", encoding="utf-8") as f:
     os.environ["GOOGLE_CREDENTIALS_JSON"] = f.read()
 os.environ["SPREADSHEET_ID"] = "mock_spreadsheet_id"
 os.environ["ADMIN_USERNAME"] = "admin"
-os.environ["ADMIN_PASSWORD_HASH"] = "$2b$12$dummyhashfortestonly"
+# hash valid untuk password "admin123" (digenerate tiap start, lokal saja)
+import bcrypt as _bcrypt
+os.environ["ADMIN_PASSWORD_HASH"] = _bcrypt.hashpw(b"admin123", _bcrypt.gensalt()).decode()
 
 # --- mock sheets sebelum app import ---
 import services.sheets_service as ss

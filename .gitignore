@@ -3,6 +3,9 @@
 *.json
 !package.json
 !package-lock.json
+# Railway deploy config MUST be committed, otherwise Nixpacks never reads
+# healthcheck/restart settings. `*.json` above would silently drop it.
+!railway.json
 credentials.json
 sistem-cuti-dishub-*.json
 
@@ -25,6 +28,7 @@ node_modules/
 .agents/
 .claude/
 .hallmark/
+.freebuff/
 skills-lock.json
 
 # OS

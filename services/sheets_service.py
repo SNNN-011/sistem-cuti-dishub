@@ -378,8 +378,8 @@ def set_auth_state(username: str, count: int, first_attempt: float):
 
         # Not found — append new row
         sheet.append_row([username, count, str(first_attempt)])
-    except SheetNotFoundError:
-        pass
+    except (SheetNotFoundError, Exception):
+        pass  # Sheets down/inaccessible — login tetap jalan tanpa lockout persist
 
 
 def delete_auth_state(username: str):

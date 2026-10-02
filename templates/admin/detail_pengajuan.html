@@ -79,19 +79,10 @@
     <h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-3">Proses Pengajuan</h3>
 
     <div class="mb-3 flex flex-col sm:flex-row sm:items-end gap-2">
-        <form method="GET" action="{{ url_for('admin.generate_surat_route', pengajuan_id=pengajuan_id) }}" id="formGenerate" class="flex flex-col sm:flex-row gap-2">
-            <div class="flex-1 sm:flex-none">
-                <label class="block text-[11px] font-semibold text-base-content/50 uppercase tracking-wide mb-1">Nomor Surat <span class="text-error">*</span></label>
-                <input type="text" name="no_surat" id="no_surat_input" placeholder="167/PKWT/VI/2026"
-                       value="{{ data.get('NO SURAT', '') }}"
-                       class="input input-sm text-[13px] w-full sm:w-56">
-            </div>
-            <div class="flex items-end">
-                <button type="submit" class="btn btn-sm btn-info btn-outline text-[13px]">
-                    Generate Surat
-                </button>
-            </div>
-        </form>
+        <a href="{{ url_for('admin.generate_surat_route', pengajuan_id=pengajuan_id) }}"
+           class="btn btn-sm btn-info btn-outline text-[13px]">
+            Generate Surat
+        </a>
     </div>
 
     <!-- Action forms — stack on mobile -->
@@ -99,7 +90,6 @@
         <form method="POST" action="{{ url_for('admin.update_status', pengajuan_id=pengajuan_id) }}" class="flex flex-col sm:flex-row gap-2">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="status" value="Disetujui">
-            <input type="hidden" name="no_surat" id="no_surat_acc" value="{{ data.get('NO SURAT', '') }}">
             <div class="flex items-end">
                 <button type="submit" class="btn btn-sm bg-success text-white border-none text-[13px] font-semibold w-full sm:w-auto"
                         data-confirm="Setujui pengajuan ini?">
@@ -125,12 +115,10 @@
     <h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-3">Dokumen</h3>
 
     <div class="mb-3">
-        <form method="GET" action="{{ url_for('admin.generate_surat_route', pengajuan_id=pengajuan_id) }}">
-            <input type="hidden" name="no_surat" value="{{ data.get('NO SURAT', '') }}">
-            <button type="submit" class="btn btn-sm btn-info btn-outline text-[13px]">
-                Generate Surat
-            </button>
-        </form>
+        <a href="{{ url_for('admin.generate_surat_route', pengajuan_id=pengajuan_id) }}"
+           class="btn btn-sm btn-info btn-outline text-[13px]">
+            Generate Surat
+        </a>
     </div>
     {% endif %}
 
@@ -142,19 +130,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script nonce="{{ csp_nonce() }}">
-// Sinkronkan input nomor surat ke form Setujui
-document.addEventListener('DOMContentLoaded', function () {
-    var input = document.getElementById('no_surat_input');
-    var accHidden = document.getElementById('no_surat_acc');
-    if (!input || !accHidden) return;
-    function sync() {
-        accHidden.value = input.value.trim();
-    }
-    input.addEventListener('input', sync);
-    var accForm = accHidden.closest('form');
-    if (accForm) accForm.addEventListener('submit', sync);
-});
-</script>
-{% endblock %}
+{% block scripts %}{% endblock %}

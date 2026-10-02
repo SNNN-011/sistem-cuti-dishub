@@ -128,20 +128,38 @@ def form_cuti():
 
         bulan_str = f"{BULAN_NAMA[tgl_mulai_dt.month]} {tgl_mulai_dt.year}"
 
-        # Hitung NO auto-increment (kolom NO di Sheets CUTI 2026)
+        # Hitung NO + NO SURAT auto-increment (counter pisah, angka saja).
+        # NO SURAT lanjut dari max existing (tahan format lama "167/PKWT/VI/2026"
+        # dengan ambil angka depan sebelum "/").
+        def _parse_nomor_surat(val):
+            s = str(val or "").strip()
+            if not s:
+                return None
+            head = s.split("/")[0].strip()
+            try:
+                return int(head)
+            except (ValueError, TypeError):
+                return None
+
         try:
             records = get_all_records(SHEET_CUTI)
             max_no = 0
+            max_no_surat = 0
             for r in records:
                 try:
                     n = int(str(r.get("NO", "")).strip())
                     if n > max_no:
                         max_no = n
                 except (ValueError, TypeError):
-                    continue
+                    pass
+                ns = _parse_nomor_surat(r.get("NO SURAT", ""))
+                if ns is not None and ns > max_no_surat:
+                    max_no_surat = ns
             next_no = str(max_no + 1)
+            next_no_surat = str(max_no_surat + 1)
         except Exception:
             next_no = "1"
+            next_no_surat = "1"
 
         # Tulis ke Sheets
         data = {
@@ -150,7 +168,7 @@ def form_cuti():
             "HARI": hari,
             "NAMA": nama,
             "KEPERLUAN": keperluan,
-            "NO SURAT": "",
+            "NO SURAT": next_no_surat,
             "JABATAN": jabatan,
             "SEKSI": seksi,
             "SHIF": shif,

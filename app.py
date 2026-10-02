@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from flask import Flask, g
 from flask_login import LoginManager
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config.settings import ADMIN_USERNAME, SECRET_KEY, SESSION_TIMEOUT_MINUTES
 from models import AdminUser
@@ -19,6 +20,14 @@ def create_app():
         )
     app = Flask(__name__)
     app.secret_key = SECRET_KEY
+
+    # Railway (and any PaaS) terminate TLS at the edge and forward over HTTP,
+    # so Flask sees scheme=http and a proxy IP. Without this, request.is_secure
+    # is False and SESSION_COOKIE_SECURE cookies look wrong to the client.
+    # x_for=1 x_proto=1 x_host=1 matches a single trusted edge proxy; do NOT
+    # raise these counts unless you add matching trusted-proxy config.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     app.permanent_session_lifetime = timedelta(minutes=SESSION_TIMEOUT_MINUTES)
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
